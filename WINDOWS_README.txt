@@ -1,28 +1,23 @@
-REPLICATOR FOR WINDOWS 10/11
+LOOPIZZ FOR WINDOWS 10/11
 
 How to use:
 
-1. Unzip the archive into any folder, for example your Desktop.
-2. Double-click run-windows.bat.
-3. Click "Choose video" and select one or more video files.
-4. Click "Choose audio" and select one audio file.
-5. The bundled overlay.png is already selected. To use a different one, click
-   "Choose overlay".
-6. Fill in the four text fields and click "Start".
+1. Extract the ZIP archive into a folder.
+2. Double-click Loopizz.exe.
+3. Add as many text layers as you need. Configure each layer's text, start/end
+   time, X/Y position, font, font size, color and animation.
+4. Optionally upload a logo image and configure its width, position, timing
+   and animation.
+5. Choose your source videos, main audio and optional FX / ambience audio.
+6. Set an optional output duration in minutes, adjust audio volumes, then
+   click RENDER VIDEO.
 
-The finished video appears next to the launcher:
+The finished video appears next to Loopizz.exe as:
 
 youtube_ready.mp4
 
-If the audio is long, watch the log: it shows the ffmpeg progress.
+The package includes embedded Python, Qt, ffmpeg, fonts and sample media.
+No separate installation is required.
 
-If the application reports an error, send the developer these files:
-
-startup.log
-render.log
-
-They appear next to run-windows.bat when the error happened during startup or
-rendering.
-
-Nothing needs to be installed. The archive already includes the application,
-Python, Qt, ffmpeg, and fonts.
+If rendering fails, send render.log. If the application cannot start, send
+startup.log. Both files are created next to Loopizz.exe.
