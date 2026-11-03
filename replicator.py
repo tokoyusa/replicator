@@ -346,11 +346,9 @@ def create_final(duration_minutes=None, fx_audio=None, main_volume=1.0, fx_volum
         "-map", "0:v:0",
         "-map", "[aout]",
         "-t", f"{target_duration:.6f}",
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "20",
-        "-pix_fmt", "yuv420p",
-        "-r", "24",
+        # The intermediate video already has its final overlay and text.
+        # Stream-copy H.264 here to avoid re-encoding every frame for long outputs.
+        "-c:v", "copy",
         "-c:a", "aac",
         "-b:a", "192k",
         "-movflags", "+faststart",
