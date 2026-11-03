@@ -1,4 +1,4 @@
-# Replicator
+# Loopizz
 
 [![Release](https://img.shields.io/github/v/release/mmakarov/replicator?sort=semver)](https://github.com/mmakarov/replicator/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/mmakarov/replicator/total)](https://github.com/mmakarov/replicator/releases)
@@ -6,41 +6,48 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2f6f9f)](#requirements)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776ab)](https://www.python.org/)
 
-Replicator turns a set of clips into a single YouTube-ready MP4. It merges one
-or more source videos, lays a transparent PNG overlay on top, draws four short
-text fields, and adds an audio track. The video is looped automatically so the
-final file has exactly the same length as the audio.
+Loopizz turns a set of clips into a single YouTube-ready MP4. It merges one
+or more source videos, lays a transparent PNG overlay on top, supports independently timed multi-layer text and a configurable logo overlay, and adds a main audio track with optional FX / ambience audio.
+The video can follow the main audio length or loop to a manually selected
+duration in minutes.
 
-![Replicator GUI](docs/screenshot.png)
+![Loopizz GUI](docs/screenshot.png)
 
 ## Features
 
 - **GUI and CLI**: a PySide6 desktop window for everyday use and a scriptable
   `replicator.py` command.
-- **Automatic looping**: the concatenated video repeats until it covers the
-  full audio track, then the audio is muxed in.
+- **Automatic looping**: the concatenated video repeats to the selected output
+  duration, or follows the main audio length when no duration is specified.
+- **Custom duration**: set the final video length in minutes independently of
+  the main audio track.
+- **Audio FX / ambience**: optionally add a second audio file (nature sounds,
+  ambience, sound effects, etc.) and mix it with the main track.
+- **Audio controls**: adjust main and FX volume independently; FX audio loops
+  to fill the output. Main audio can optionally loop too; otherwise silence
+  fills any time after the main track ends.
 - **Transparent overlay**: any 1280x720 PNG overlay is composited over every
   frame.
-- **Four text fields**: heading, name, extra line, and date, rendered with
-  bundled Noto Sans fonts (including Cyrillic).
-- **Portable Windows build**: a single `Replicator-Windows.zip` with embedded
-  Python, Qt, ffmpeg, fonts, and sample media. No installation required.
+- **Multi-layer text editor**: add unlimited text layers with individual start/end time, X/Y position, font file, size, color, and none/fade/slide animation.
+- **Logo overlay**: upload PNG/JPG/WebP logos and configure width, position, start/end time, and animation.
+- **Windows executable**: a `Loopizz.exe` desktop launcher plus embedded Python render engine, Qt, ffmpeg, fonts, and sample media. No installation required.
 - **Diagnostics**: startup and render errors are written to `startup.log` and
   `render.log` next to the launcher.
 
 ## Quick start (Windows)
 
-1. Download `Replicator-Windows.zip` from the
+1. Download `Loopizz-Windows.zip` from the
    [latest release](https://github.com/mmakarov/replicator/releases/latest).
 2. Unzip it anywhere.
-3. Double-click `run-windows.bat`.
-4. Choose one or more videos, one audio file, and optionally a different PNG
-   overlay.
-5. Fill in the four text fields and click **Start**.
+3. Double-click `Loopizz.exe` (or `run-windows.bat` as a fallback).
+4. Choose one or more videos, the main audio, optional FX / ambience audio,
+   and optionally a different PNG overlay.
+5. Add and configure text layers and an optional logo.
+6. Optionally enter the output duration in minutes and adjust audio volumes.
+7. Click **RENDER VIDEO**.
 6. The result appears next to the app as `youtube_ready.mp4`.
 
-The archive already contains Python, Qt, ffmpeg, and fonts, so nothing else
-needs to be installed.
+The archive already contains the app, embedded Python, Qt, ffmpeg, and fonts, so nothing else needs to be installed.
 
 ## Sample files
 
@@ -57,14 +64,18 @@ source videos --> scale + crop to 1280x720 --> concat --+
                                                         +--> overlay + drawtext --> medium.mp4
 overlay.png --------------------------------------------+
 
-medium.mp4 --> loop to match audio length --> mux audio --> youtube_ready.mp4
+medium.mp4 --> loop to target duration -------------------+
+main audio --> volume / pad / optional loop ---------------+--> mix --> youtube_ready.mp4
+FX audio --> volume / loop (optional) ---------------------+
 ```
 
 1. Each source is scaled and cropped to 1280x720, then all clips are
    concatenated.
-2. The overlay and the four text fields are drawn on the combined video.
-3. The intermediate video is looped with `ffmpeg -stream_loop` and muxed with
-   the audio track, trimming the result to the shorter stream.
+2. The background overlay, timed text layers and optional logo are composited on the combined video.
+3. The intermediate video is looped to the target duration. The main audio is
+   padded with silence when it ends early, unless main-audio looping is enabled.
+   Optional FX / ambience audio is looped and mixed at its own volume. The final
+   render is trimmed to the selected duration.
 
 ## Developer setup
 
@@ -100,13 +111,21 @@ python3 replicator.py \
   --extra "Sample City" \
   --date "2026-06-19" \
   --audio audio/voice.mp3 \
+  --fx-audio audio/rain.wav \
+  --duration-minutes 60 \
+  --main-volume 1.0 \
+  --fx-volume 0.25 \
   --overlay overlay.png \
   --video video/source1.mp4 \
   --video video/source2.mp4
 ```
 
-Use `--no-pause` to skip the final "press Enter" prompt (used by the release
-smoke tests). Without the text arguments, the CLI prompts for each field.
+Use `--duration-minutes` to set an independent output length; omit it to keep
+the original behavior (output length follows the main audio). Use
+`--fx-audio` for optional background ambience, `--fx-volume` and
+`--main-volume` for levels, and `--loop-audio` if the main track should repeat.
+Without the text arguments, the CLI prompts for each field. Use `--no-pause`
+to skip the final "press Enter" prompt (used by release smoke tests).
 
 ## Project structure
 
@@ -131,7 +150,7 @@ publishes the portable package.
 3. Enter a new tag, for example `v8`.
 
 The workflow runs on `windows-latest`, downloads embedded Python, PySide6,
-shiboken6, and ffmpeg, produces `dist/Replicator-Windows.zip`, runs the smoke
+shiboken6, and ffmpeg, produces `dist/Loopizz-Windows.zip`, runs the smoke
 tests against the built package, and only then creates the GitHub Release. The
 separate **Windows release smoke** workflow can test an already published
 archive by URL.
@@ -139,7 +158,7 @@ archive by URL.
 ## Troubleshooting
 
 - **Nothing happens / app closes**: check `startup.log` next to
-  `run-windows.bat`.
+  `Loopizz.exe`.
 - **Render fails**: check `render.log`; it contains the full `ffmpeg` output.
 - **`ffmpeg` not found**: install ffmpeg and make sure it is on `PATH`, or
   place `ffmpeg`/`ffprobe` in a local `bin/` folder.
