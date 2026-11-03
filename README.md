@@ -1,4 +1,4 @@
-# Replicator
+# Loopizz
 
 [![Release](https://img.shields.io/github/v/release/mmakarov/replicator?sort=semver)](https://github.com/mmakarov/replicator/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/mmakarov/replicator/total)](https://github.com/mmakarov/replicator/releases)
@@ -6,13 +6,12 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2f6f9f)](#requirements)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776ab)](https://www.python.org/)
 
-Replicator turns a set of clips into a single YouTube-ready MP4. It merges one
-or more source videos, lays a transparent PNG overlay on top, draws four short
-text fields, and adds a main audio track with optional FX / ambience audio.
+Loopizz turns a set of clips into a single YouTube-ready MP4. It merges one
+or more source videos, lays a transparent PNG overlay on top, supports independently timed multi-layer text and a configurable logo overlay, and adds a main audio track with optional FX / ambience audio.
 The video can follow the main audio length or loop to a manually selected
 duration in minutes.
 
-![Replicator GUI](docs/screenshot.png)
+![Loopizz GUI](docs/screenshot.png)
 
 ## Features
 
@@ -29,27 +28,26 @@ duration in minutes.
   fills any time after the main track ends.
 - **Transparent overlay**: any 1280x720 PNG overlay is composited over every
   frame.
-- **Four text fields**: heading, name, extra line, and date, rendered with
-  bundled Noto Sans fonts (including Cyrillic).
-- **Portable Windows build**: a single `Replicator-Windows.zip` with embedded
-  Python, Qt, ffmpeg, fonts, and sample media. No installation required.
+- **Multi-layer text editor**: add unlimited text layers with individual start/end time, X/Y position, font file, size, color, and none/fade/slide animation.
+- **Logo overlay**: upload PNG/JPG/WebP logos and configure width, position, start/end time, and animation.
+- **Windows executable**: a `Loopizz.exe` desktop launcher plus embedded Python render engine, Qt, ffmpeg, fonts, and sample media. No installation required.
 - **Diagnostics**: startup and render errors are written to `startup.log` and
   `render.log` next to the launcher.
 
 ## Quick start (Windows)
 
-1. Download `Replicator-Windows.zip` from the
+1. Download `Loopizz-Windows.zip` from the
    [latest release](https://github.com/mmakarov/replicator/releases/latest).
 2. Unzip it anywhere.
-3. Double-click `run-windows.bat`.
+3. Double-click `Loopizz.exe` (or `run-windows.bat` as a fallback).
 4. Choose one or more videos, the main audio, optional FX / ambience audio,
    and optionally a different PNG overlay.
-5. Optionally enter the output duration in minutes and adjust audio volumes.
-5. Fill in the four text fields and click **Start**.
+5. Add and configure text layers and an optional logo.
+6. Optionally enter the output duration in minutes and adjust audio volumes.
+7. Click **RENDER VIDEO**.
 6. The result appears next to the app as `youtube_ready.mp4`.
 
-The archive already contains Python, Qt, ffmpeg, and fonts, so nothing else
-needs to be installed.
+The archive already contains the app, embedded Python, Qt, ffmpeg, and fonts, so nothing else needs to be installed.
 
 ## Sample files
 
@@ -73,7 +71,7 @@ FX audio --> volume / loop (optional) ---------------------+
 
 1. Each source is scaled and cropped to 1280x720, then all clips are
    concatenated.
-2. The overlay and the four text fields are drawn on the combined video.
+2. The background overlay, timed text layers and optional logo are composited on the combined video.
 3. The intermediate video is looped to the target duration. The main audio is
    padded with silence when it ends early, unless main-audio looping is enabled.
    Optional FX / ambience audio is looped and mixed at its own volume. The final
@@ -152,7 +150,7 @@ publishes the portable package.
 3. Enter a new tag, for example `v8`.
 
 The workflow runs on `windows-latest`, downloads embedded Python, PySide6,
-shiboken6, and ffmpeg, produces `dist/Replicator-Windows.zip`, runs the smoke
+shiboken6, and ffmpeg, produces `dist/Loopizz-Windows.zip`, runs the smoke
 tests against the built package, and only then creates the GitHub Release. The
 separate **Windows release smoke** workflow can test an already published
 archive by URL.
@@ -160,7 +158,7 @@ archive by URL.
 ## Troubleshooting
 
 - **Nothing happens / app closes**: check `startup.log` next to
-  `run-windows.bat`.
+  `Loopizz.exe`.
 - **Render fails**: check `render.log`; it contains the full `ffmpeg` output.
 - **`ffmpeg` not found**: install ffmpeg and make sure it is on `PATH`, or
   place `ffmpeg`/`ffprobe` in a local `bin/` folder.
