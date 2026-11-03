@@ -302,8 +302,8 @@ class ReplicatorWindow(QWidget):
             duration = self.duration_minutes.text().strip()
             if duration and float(duration) <= 0:
                 raise ValueError
-            for value in (self.main_volume.text().strip(), self.fx_volume.text().strip()):
-                if not 0 <= float(value) <= 2:
+            for value, default in ((self.main_volume.text().strip(), "1.0"), (self.fx_volume.text().strip(), "0.35")):
+                if not 0 <= float(value or default) <= 2:
                     raise ValueError
         except ValueError:
             raise ValueError("Duration must be positive minutes; audio volumes must be numbers from 0 to 2.")
@@ -311,10 +311,13 @@ class ReplicatorWindow(QWidget):
     def estimate_needed_space(self):
         selected_size = sum(Path(path).stat().st_size for path in self.video_files)
         selected_size += Path(self.audio_file).stat().st_size
+        if self.fx_audio_file:
+            selected_size += Path(self.fx_audio_file).stat().st_size
         selected_size += Path(self.overlay_file).stat().st_size
-        # The app creates a rendered intermediate file plus a looped silent video
-        # before the final mp4. Keep this deliberately conservative.
-        return max(selected_size * 4, 3 * 1024 * 1024 * 1024)
+        # Estimate a generous allowance for long 720p H.264 renders.
+        duration_text = self.duration_minutes.text().strip()
+        duration_allowance = float(duration_text) * 100 * 1024 * 1024 if duration_text else 0
+        return max(selected_size * 4, 3 * 1024 * 1024 * 1024, duration_allowance)
 
     def check_free_space(self):
         needed = self.estimate_needed_space()
