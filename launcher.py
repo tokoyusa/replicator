@@ -6,7 +6,7 @@ import traceback
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 LOG_FILE = ROOT / "startup.log"
 
 
@@ -15,12 +15,12 @@ def smoke_test():
     import gui_qt
     from PySide6.QtWidgets import QApplication
 
-    app = QApplication.instance() or QApplication(["replicator-smoke"])
+    app = QApplication.instance() or QApplication(["loopizz-smoke"])
     window = gui_qt.ReplicatorWindow()
     app.processEvents()
-    if not window.windowTitle():
+    if window.windowTitle() != "Loopizz":
         raise RuntimeError("Replicator window was not initialized")
-    print("Replicator GUI smoke OK")
+    print("Loopizz GUI smoke OK")
     window.close()
     window.deleteLater()
     app.processEvents()
@@ -32,7 +32,7 @@ def show_error(message):
         print(message)
         return
     try:
-        ctypes.windll.user32.MessageBoxW(None, message, "Replicator", 0x10)
+        ctypes.windll.user32.MessageBoxW(None, message, "Loopizz", 0x10)
     except Exception:
         print(message)
 
