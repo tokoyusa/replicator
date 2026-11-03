@@ -16,10 +16,10 @@ def smoke_test():
     from PySide6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication(["loopizz-smoke"])
-    window = gui_qt.ReplicatorWindow()
+    window = gui_qt.LoopizzWindow()
     app.processEvents()
     if window.windowTitle() != "Loopizz":
-        raise RuntimeError("Replicator window was not initialized")
+        raise RuntimeError("Loopizz window was not initialized")
     print("Loopizz GUI smoke OK")
     window.close()
     window.deleteLater()
