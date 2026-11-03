@@ -11,6 +11,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
+    QCheckBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -38,6 +39,7 @@ class ReplicatorWindow(QWidget):
         self.render_log = None
         self.video_files = sorted((ROOT / "video").glob("source*.mp4"))
         self.audio_file = ROOT / "audio" / "voice.mp3"
+        self.fx_audio_file = None
         self.overlay_file = ROOT / "overlay.png"
         self.setWindowTitle("Replicator")
         self.resize(900, 680)
@@ -135,13 +137,31 @@ class ReplicatorWindow(QWidget):
         self.choose_audio_button.clicked.connect(self.choose_audio)
         self.choose_overlay_button = QPushButton("Choose overlay")
         self.choose_overlay_button.clicked.connect(self.choose_overlay)
+        self.choose_fx_button = QPushButton("Choose FX / ambience")
+        self.choose_fx_button.clicked.connect(self.choose_fx_audio)
         self.refresh_button = QPushButton("Reset")
         self.refresh_button.clicked.connect(self.reset_defaults)
         file_buttons.addWidget(self.choose_video_button, 0, 0)
         file_buttons.addWidget(self.choose_audio_button, 0, 1)
         file_buttons.addWidget(self.choose_overlay_button, 1, 0)
-        file_buttons.addWidget(self.refresh_button, 1, 1)
+        file_buttons.addWidget(self.choose_fx_button, 1, 1)
+        file_buttons.addWidget(self.refresh_button, 2, 0, 1, 2)
         files_layout.addLayout(file_buttons)
+
+        settings = QGridLayout()
+        self.duration_minutes = QLineEdit()
+        self.duration_minutes.setPlaceholderText("Blank = follow main audio duration")
+        self.main_volume = QLineEdit("1.0")
+        self.fx_volume = QLineEdit("0.35")
+        self.loop_main_audio = QCheckBox("Loop main audio until video ends")
+        settings.addWidget(QLabel("Video duration (minutes)"), 0, 0)
+        settings.addWidget(self.duration_minutes, 0, 1)
+        settings.addWidget(QLabel("Main audio volume (0-2)"), 1, 0)
+        settings.addWidget(self.main_volume, 1, 1)
+        settings.addWidget(QLabel("FX volume (0-2)"), 2, 0)
+        settings.addWidget(self.fx_volume, 2, 1)
+        settings.addWidget(self.loop_main_audio, 3, 0, 1, 2)
+        files_layout.addLayout(settings)
         top.addWidget(files_group, 1)
 
         actions = QHBoxLayout()
@@ -178,6 +198,7 @@ class ReplicatorWindow(QWidget):
         lines = [
             "Video: " + (", ".join(videos) if videos else "not selected"),
             "Audio: " + (Path(self.audio_file).name if self.audio_file and Path(self.audio_file).exists() else "not selected"),
+            "FX / ambience: " + (Path(self.fx_audio_file).name if self.fx_audio_file and Path(self.fx_audio_file).exists() else "not selected (optional)"),
             "Overlay: " + (Path(self.overlay_file).name if self.overlay_file and Path(self.overlay_file).exists() else "not selected"),
             "Result: " + ("youtube_ready.mp4 ready" if (ROOT / "youtube_ready.mp4").exists() else "not created yet"),
         ]
@@ -187,7 +208,12 @@ class ReplicatorWindow(QWidget):
     def reset_defaults(self):
         self.video_files = sorted((ROOT / "video").glob("source*.mp4"))
         self.audio_file = ROOT / "audio" / "voice.mp3"
+        self.fx_audio_file = None
         self.overlay_file = ROOT / "overlay.png"
+        self.duration_minutes.clear()
+        self.main_volume.setText("1.0")
+        self.fx_volume.setText("0.35")
+        self.loop_main_audio.setChecked(False)
         self.refresh_status()
 
     def choose_videos(self):
@@ -210,6 +236,17 @@ class ReplicatorWindow(QWidget):
         )
         if file:
             self.audio_file = Path(file)
+            self.refresh_status()
+
+    def choose_fx_audio(self):
+        file, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select FX / ambience audio",
+            str(ROOT),
+            "Audio (*.mp3 *.wav *.m4a *.aac *.flac *.ogg);;All files (*.*)",
+        )
+        if file:
+            self.fx_audio_file = Path(file)
             self.refresh_status()
 
     def choose_overlay(self):
@@ -259,6 +296,17 @@ class ReplicatorWindow(QWidget):
             raise ValueError("Select one audio file.")
         if not self.overlay_file or not Path(self.overlay_file).exists():
             raise ValueError("Select one PNG overlay.")
+        if self.fx_audio_file and not Path(self.fx_audio_file).exists():
+            raise ValueError("The selected FX / ambience audio file was not found.")
+        try:
+            duration = self.duration_minutes.text().strip()
+            if duration and float(duration) <= 0:
+                raise ValueError
+            for value in (self.main_volume.text().strip(), self.fx_volume.text().strip()):
+                if not 0 <= float(value) <= 2:
+                    raise ValueError
+        except ValueError:
+            raise ValueError("Duration must be positive minutes; audio volumes must be numbers from 0 to 2.")
 
     def estimate_needed_space(self):
         selected_size = sum(Path(path).stat().st_size for path in self.video_files)
@@ -314,7 +362,17 @@ class ReplicatorWindow(QWidget):
             str(self.audio_file),
             "--overlay",
             str(self.overlay_file),
+            "--main-volume",
+            self.main_volume.text().strip() or "1.0",
+            "--fx-volume",
+            self.fx_volume.text().strip() or "0.35",
         ]
+        if self.duration_minutes.text().strip():
+            args.extend(["--duration-minutes", self.duration_minutes.text().strip()])
+        if self.fx_audio_file:
+            args.extend(["--fx-audio", str(self.fx_audio_file)])
+        if self.loop_main_audio.isChecked():
+            args.append("--loop-audio")
         for video in self.video_files:
             args.extend(["--video", str(video)])
         self.process = QProcess(self)
