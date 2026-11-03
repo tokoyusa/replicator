@@ -19,6 +19,7 @@ DEFAULT_AUDIO_FILE = ROOT / "audio" / "voice.mp3"
 DEFAULT_OVERLAY_FILE = ROOT / "overlay.png"
 AUDIO_FILE = DEFAULT_AUDIO_FILE
 OVERLAY_FILE = DEFAULT_OVERLAY_FILE
+FX_AUDIO_FILE = None
 MEDIUM_FILE = ROOT / "medium.mp4"
 SILENT_FILE = ROOT / "silent_fin.mp4"
 FINAL_FILE = ROOT / "youtube_ready.mp4"
@@ -293,61 +294,70 @@ def create_medium(sources, texts):
     run(command)
 
 
-def create_final():
+def create_final(duration_minutes=None, fx_audio=None, main_volume=1.0, fx_volume=0.35, loop_audio=False):
     ffmpeg = ffmpeg_path()
     audio_duration = probe_duration(AUDIO_FILE)
     video_duration = probe_duration(MEDIUM_FILE)
-    audio_length = math.ceil(audio_duration)
-    video_length = math.ceil(video_duration)
-    if video_length <= 0:
+    target_duration = float(duration_minutes) * 60 if duration_minutes is not None else audio_duration
+    if target_duration <= 0:
+        fail("The target duration must be greater than zero.")
+    if video_duration <= 0:
         fail("The intermediate video has zero length.")
+    if not 0 <= main_volume <= 2:
+        fail("Main audio volume must be between 0 and 2.")
+    if not 0 <= fx_volume <= 2:
+        fail("FX audio volume must be between 0 and 2.")
+    if fx_audio and not Path(fx_audio).exists():
+        fail("FX / ambience audio file not found: " + str(fx_audio))
 
-    repeats = max(1, math.ceil(audio_duration / video_duration))
-    loop = repeats - 1
+    print(f"Main audio duration: {math.ceil(audio_duration)} seconds")
+    print(f"Target video duration: {target_duration:.1f} seconds")
+    print(f"Video loop duration: {video_duration:.1f} seconds")
+    if fx_audio:
+        print("Mixing background FX / ambience audio...")
+    if loop_audio:
+        print("Main audio looping: enabled")
+    else:
+        print("Main audio looping: disabled (silence fills any remaining time)")
 
-    print(f"Audio duration: {audio_length} seconds")
-    print(f"Video duration: {video_length} seconds")
-    print(f"Video repeats: {repeats}")
-    print("Saving the looped video without sound...")
-    run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-stats",
-            "-y",
-            "-stream_loop",
-            str(loop),
-            "-i",
-            str(MEDIUM_FILE),
-            "-c",
-            "copy",
-            str(SILENT_FILE),
-        ]
-    )
+    command = [ffmpeg, "-hide_banner", "-stats", "-y", "-stream_loop", "-1", "-i", str(MEDIUM_FILE)]
+    if loop_audio:
+        command.extend(["-stream_loop", "-1"])
+    command.extend(["-i", str(AUDIO_FILE)])
+    if fx_audio:
+        command.extend(["-stream_loop", "-1", "-i", str(fx_audio)])
 
-    print("Adding the audio track...")
-    run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-stats",
-            "-y",
-            "-i",
-            str(SILENT_FILE),
-            "-i",
-            str(AUDIO_FILE),
-            "-map",
-            "0:v",
-            "-map",
-            "1:a",
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac",
-            "-shortest",
-            str(FINAL_FILE),
-        ]
-    )
+    filters = [
+        f"[1:a]volume={main_volume},apad,atrim=duration={target_duration:.6f}[main]"
+    ]
+    if fx_audio:
+        filters.append(
+            f"[2:a]volume={fx_volume},atrim=duration={target_duration:.6f}[fx]"
+        )
+        filters.append(
+            f"[main][fx]amix=inputs=2:duration=longest:dropout_transition=0,"
+            f"alimiter=limit=0.95,atrim=duration={target_duration:.6f}[aout]"
+        )
+    else:
+        filters.append("[main]anull[aout]")
+
+    command.extend([
+        "-filter_complex", ";".join(filters),
+        "-map", "0:v:0",
+        "-map", "[aout]",
+        "-t", f"{target_duration:.6f}",
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "20",
+        "-pix_fmt", "yuv420p",
+        "-r", "24",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-movflags", "+faststart",
+        str(FINAL_FILE),
+    ])
+    print("Rendering the final video and audio mix...")
+    run(command)
 
 
 def cleanup():
@@ -368,18 +378,31 @@ def parse_args():
     parser.add_argument("--video", action="append", default=[])
     parser.add_argument("--audio", default=None)
     parser.add_argument("--overlay", default=None)
+    parser.add_argument("--fx-audio", default=None, help="Optional looping FX / ambience audio file")
+    parser.add_argument("--duration-minutes", type=float, default=None, help="Output duration in minutes; defaults to main audio duration")
+    parser.add_argument("--main-volume", type=float, default=1.0, help="Main audio volume (0.0 to 2.0)")
+    parser.add_argument("--fx-volume", type=float, default=0.35, help="FX audio volume (0.0 to 2.0)")
+    parser.add_argument("--loop-audio", action="store_true", help="Loop the main audio to fill the target duration")
     parser.add_argument("--no-pause", action="store_true")
     return parser.parse_args()
 
 
 def main():
-    global AUDIO_FILE, OVERLAY_FILE, PAUSE_ON_ERROR
+    global AUDIO_FILE, OVERLAY_FILE, FX_AUDIO_FILE, PAUSE_ON_ERROR
     args = parse_args()
     PAUSE_ON_ERROR = not args.no_pause
     if args.audio:
         AUDIO_FILE = Path(args.audio)
     if args.overlay:
         OVERLAY_FILE = Path(args.overlay)
+    if args.fx_audio:
+        FX_AUDIO_FILE = Path(args.fx_audio)
+    if args.duration_minutes is not None and args.duration_minutes <= 0:
+        fail("--duration-minutes must be greater than zero.")
+    if not 0 <= args.main_volume <= 2:
+        fail("--main-volume must be between 0 and 2.")
+    if not 0 <= args.fx_volume <= 2:
+        fail("--fx-volume must be between 0 and 2.")
     os.chdir(ROOT)
     print("Replicator: preparing a YouTube-ready video")
     print("")
@@ -409,7 +432,13 @@ def main():
     print("")
     print("Building the video with overlay and text...")
     create_medium(sources, texts)
-    create_final()
+    create_final(
+        duration_minutes=args.duration_minutes,
+        fx_audio=FX_AUDIO_FILE,
+        main_volume=args.main_volume,
+        fx_volume=args.fx_volume,
+        loop_audio=args.loop_audio,
+    )
     cleanup()
     print("")
     print("Done! Output file:")
