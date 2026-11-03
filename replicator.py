@@ -301,7 +301,7 @@ def create_medium(sources, texts, text_layers=None, logo=None):
         x_expr = position_expr(layer.get("x", "center"), "x")
         y_expr = position_expr(layer.get("y", "center"), "y")
         if animation == "slide":
-            x_expr = f"if(lt(t\\,{start_time + fade_in:.3f})\\,w-text_w+(t-{start_time:.3f})/{fade_in:.3f}*(text_w+w)\\,{x_expr})"
+            x_expr = f"if(lt(t\\,{start_time + fade_in:.3f})\\,w+(({x_expr})-w)*(t-{start_time:.3f})/{fade_in:.3f}\\,{x_expr})"
         alpha = "1"
         if animation in ("fade", "slide"):
             alpha = f"if(lt(t\\,{start_time + fade_in:.3f})\\,(t-{start_time:.3f})/{fade_in:.3f}\\,if(gt(t\\,{end_time-fade_out:.3f})\\,({end_time:.3f}-t)/{fade_out:.3f}\\,1))"
@@ -325,7 +325,7 @@ def create_medium(sources, texts, text_layers=None, logo=None):
             logo_filter += f",fade=t=in:st={start_time}:d={fade_in}:alpha=1,fade=t=out:st={max(start_time,end_time-fade_out)}:d={fade_out}:alpha=1"
         filters.append(logo_filter + "[logo_layer]")
         if animation == "slide":
-            x_expr = f"if(lt(t\\,{start_time+fade_in:.3f})\\,w-overlay_w+(t-{start_time:.3f})/{fade_in:.3f}*(overlay_w+w)\\,{x_expr})"
+            x_expr = f"if(lt(t\\,{start_time+fade_in:.3f})\\,w+(({x_expr})-w)*(t-{start_time:.3f})/{fade_in:.3f}\\,{x_expr})"
         filters.append(f"[{current_label}][logo_layer]overlay=x={x_expr}:y={y_expr}:enable='between(t,{start_time:.3f},{end_time:.3f})':format=auto[with_logo]")
         current_label = "with_logo"
     filters.append(f"[{current_label}]null[outv]")
