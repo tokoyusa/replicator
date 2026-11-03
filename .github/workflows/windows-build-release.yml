@@ -1,4 +1,4 @@
-name: Build Windows release
+name: Build Loopizz Windows release
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $pythonVersion = "3.12.10"
           $pysideVersion = "6.8.3"
-          $packageRoot = "dist\Replicator-Windows"
+          $packageRoot = "dist\Loopizz-Windows"
 
           if (Test-Path "dist") {
             Remove-Item -Recurse -Force "dist"
@@ -70,6 +70,10 @@ jobs:
             "PySide6-Essentials==$pysideVersion" `
             "shiboken6==$pysideVersion"
 
+          python -m pip install "PySide6-Essentials==$pysideVersion" "shiboken6==$pysideVersion" pyinstaller
+          pyinstaller --noconfirm --clean --onefile --windowed --name Loopizz --collect-all PySide6 --collect-all shiboken6 launcher.py
+          Copy-Item -Force "dist\Loopizz.exe" "$packageRoot\Loopizz.exe"
+
           Invoke-WebRequest `
             -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" `
             -OutFile "ffmpeg.zip"
@@ -83,14 +87,15 @@ jobs:
           $bat = $bat -replace "`r?`n", "`r`n"
           [System.IO.File]::WriteAllText((Resolve-Path $batPath), $bat, [System.Text.UTF8Encoding]::new($false))
 
-          Compress-Archive -Path $packageRoot -DestinationPath "dist\Replicator-Windows.zip" -Force
+          Compress-Archive -Path $packageRoot -DestinationPath "dist\Loopizz-Windows.zip" -Force
 
       - name: Verify package layout
         shell: pwsh
-        working-directory: dist\Replicator-Windows
+        working-directory: dist\Loopizz-Windows
         run: |
           $ErrorActionPreference = "Stop"
           $required = @(
+            "Loopizz.exe",
             "run-windows.bat",
             "launcher.py",
             "gui_qt.py",
@@ -116,19 +121,21 @@ jobs:
             throw "run-windows.bat must use CRLF line endings"
           }
 
-      - name: Start launcher through batch in smoke mode
+      - name: Start Loopizz.exe in smoke mode
         timeout-minutes: 3
-        shell: cmd
-        working-directory: dist\Replicator-Windows
+        shell: pwsh
+        working-directory: dist\Loopizz-Windows
         env:
           REPLICATOR_SMOKE: "1"
           QT_OPENGL: software
           PYTHONUTF8: "1"
-        run: run-windows.bat
+        run: |
+          & .\Loopizz.exe
+          if ($LASTEXITCODE -ne 0) { throw "Loopizz.exe smoke test failed" }
 
       - name: Render sample video
         shell: cmd
-        working-directory: dist\Replicator-Windows
+        working-directory: dist\Loopizz-Windows
         env:
           QT_OPENGL: software
           PYTHONUTF8: "1"
@@ -146,7 +153,7 @@ jobs:
 
       - name: Verify rendered output
         shell: pwsh
-        working-directory: dist\Replicator-Windows
+        working-directory: dist\Loopizz-Windows
         run: |
           $ErrorActionPreference = "Stop"
           if (!(Test-Path "youtube_ready.mp4")) {
@@ -164,10 +171,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = "Stop"
-          gh release create "${{ inputs.version }}" "dist\Replicator-Windows.zip" `
+          gh release create "${{ inputs.version }}" "dist\Loopizz-Windows.zip" `
             --target "${{ github.sha }}" `
-            --title "Replicator Windows ${{ inputs.version }}" `
-            --notes "Self-contained Windows package. Includes embedded Python, Qt, ffmpeg, fonts, overlay, sample video/audio, startup.log and render.log diagnostics."
+            --title "Loopizz Windows ${{ inputs.version }}" `
+            --notes "Loopizz Windows app with Loopizz.exe, embedded Python render engine, Qt, ffmpeg, fonts, multi-layer text and logo overlay controls."
 
       - name: Upload smoke artifacts
         if: always()
@@ -175,7 +182,7 @@ jobs:
         with:
           name: windows-build-release-smoke-output
           path: |
-            dist/Replicator-Windows/startup.log
-            dist/Replicator-Windows/render.log
-            dist/Replicator-Windows/youtube_ready.mp4
+            dist/Loopizz-Windows/startup.log
+            dist/Loopizz-Windows/render.log
+            dist/Loopizz-Windows/youtube_ready.mp4
           if-no-files-found: ignore
