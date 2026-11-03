@@ -264,7 +264,7 @@ def create_medium(sources, texts, text_layers=None, logo=None):
         if not logo_path.exists():
             fail("Logo image not found: " + str(logo_path))
         logo_index = len(sources) + 1
-        command.extend(["-i", str(logo_path)])
+        command.extend(["-loop", "1", "-i", str(logo_path)])
 
     filters = []
     scaled_labels = []
@@ -469,7 +469,9 @@ def main():
         print("  " + source.name)
     print("")
 
-    if any(value is not None for value in (args.heading, args.name, args.extra, args.date)):
+    if args.text_config:
+        texts = {"heading": "", "name": "", "extra": "", "date": ""}
+    elif any(value is not None for value in (args.heading, args.name, args.extra, args.date)):
         texts = {
             "heading": validate_text("Enter the heading", args.heading, "#HEADING"),
             "name": validate_text("Enter the name", args.name, "Name"),
